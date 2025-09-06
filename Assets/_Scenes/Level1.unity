@@ -6570,11 +6570,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: 3rdPersonPlayer
       objectReference: {fileID: 0}
-    - target: {fileID: 1043106524462670505, guid: 0fbf080f328bbd44abf186543500ccb2,
-        type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 1043106524462670508, guid: 0fbf080f328bbd44abf186543500ccb2,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -6625,25 +6620,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 1054889230129200461, guid: 0fbf080f328bbd44abf186543500ccb2,
+    - target: {fileID: 6570775437858326121, guid: 0fbf080f328bbd44abf186543500ccb2,
         type: 3}
-      propertyPath: m_BackGroundColor.a
-      value: 1
+      propertyPath: m_LocalRotation.w
+      value: 0.99629086
       objectReference: {fileID: 0}
-    - target: {fileID: 1054889230129200461, guid: 0fbf080f328bbd44abf186543500ccb2,
+    - target: {fileID: 6570775437858326121, guid: 0fbf080f328bbd44abf186543500ccb2,
         type: 3}
-      propertyPath: m_BackGroundColor.b
-      value: 0
+      propertyPath: m_LocalRotation.x
+      value: 0.08604985
       objectReference: {fileID: 0}
-    - target: {fileID: 1054889230129200461, guid: 0fbf080f328bbd44abf186543500ccb2,
+    - target: {fileID: 6807123920435578726, guid: 0fbf080f328bbd44abf186543500ccb2,
         type: 3}
-      propertyPath: m_BackGroundColor.g
-      value: 0
+      propertyPath: m_LocalRotation.w
+      value: 0.9964314
       objectReference: {fileID: 0}
-    - target: {fileID: 1054889230129200461, guid: 0fbf080f328bbd44abf186543500ccb2,
+    - target: {fileID: 6807123920435578726, guid: 0fbf080f328bbd44abf186543500ccb2,
         type: 3}
-      propertyPath: m_BackGroundColor.r
-      value: 0
+      propertyPath: m_LocalRotation.x
+      value: 0.084406674
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
