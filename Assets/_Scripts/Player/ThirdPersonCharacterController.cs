@@ -28,6 +28,8 @@ public class ThirdPersonCharacterController : MonoBehaviour
     public InputAction moveInput;
     [Tooltip("The input action(s) that map to jumping")]
     public InputAction jumpInput;
+    
+    public GameObject thruster;
 
     [Header("Effects settings")]
     [Tooltip("The effect to create when jumping")]
@@ -40,6 +42,31 @@ public class ThirdPersonCharacterController : MonoBehaviour
     [Header("Following Game Objects")]
     [Tooltip("The following scripts of game objects that should follow this controller after it is done moving each frame")]
     public List<FollowLikeChild> followers;
+    
+    
+    [Header("Jetpack Settings")]
+    [Tooltip("Maximum jetpack fuel")]
+    public float maxFuel = 5f;
+    [Tooltip("Current jetpack fuel")]
+    public float currentFuel;
+    [Tooltip("How fast the jetpack fuel regenerates per second")]
+    public float fuelRegenRate = 1f;
+    [Tooltip("How fast the jetpack fuel burns per second while active")]
+    public float fuelBurnRate = 1f;
+    [Tooltip("Upward force applied when jetpack is active")]
+    public float jetpackThrust = 5f;
+
+    [Header("Dash Settings")]
+    public float dashForce = 15f;
+    public float dashCooldown = 3f;
+    public float dashDuration = 0.3f;
+    private bool canDash = true;
+    private float dashCooldownTimer = 0f;
+    private float dashTimer = 0f;
+    private Vector3 dashMomentum = Vector3.zero;
+
+    public GameObject shield;
+
 
     /// <summary>
     /// Standard Unity function called whenever the attached gameobject is enabled
@@ -70,6 +97,8 @@ public class ThirdPersonCharacterController : MonoBehaviour
     void Start()
     {
         InitialSetup();
+        currentFuel = maxFuel;
+        shield.SetActive(false);
     }
 
     /// <summary>
@@ -85,14 +114,12 @@ public class ThirdPersonCharacterController : MonoBehaviour
         characterController = gameObject.GetComponent<CharacterController>();
         if (characterController == null)
         {
-            Debug.LogError("There is no character controller attached to the same gameobject as the ThirdPersonCharacterController. + " +
-                "\n It needs one to run correctly");
+         
         }
 
         if (GetComponent<Health>() == null)
         {
-            Debug.LogError("There is no health script attached to the player!\n" + "There needs to be a health script on the same" +
-                "object as the Third Person Character Controller");
+            
         }
         else
         {
@@ -113,18 +140,43 @@ public class ThirdPersonCharacterController : MonoBehaviour
     /// Retuns:
     /// void
     /// </summary>
+    void Update()
+    {
+        // Handle dash input in Update
+        if ((Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift)) && canDash && characterController.isGrounded)
+        {
+        
+            dashMomentum = transform.forward * dashForce;
+            dashTimer = dashDuration;
+            canDash = false;
+            dashCooldownTimer = dashCooldown;
+        }
+    }
+
     void LateUpdate()
     {
-
         // Don't do anything if the game is paused
         if (Time.timeScale == 0)
         {
             return;
         }
         MatchCameraYRotation();
-        CentralizedControl(moveInput.ReadValue<Vector2>().x, moveInput.ReadValue<Vector2>().y, jumpInput.triggered);
+        CentralizedControl(moveInput.ReadValue<Vector2>().x, moveInput.ReadValue<Vector2>().y, jumpInput.triggered, jumpInput.IsPressed());
+        HandleRightClick();
     }
-
+    
+    void HandleRightClick()
+    {
+        if (Input.GetMouseButton(1) && characterController.isGrounded) 
+        {
+            shield.SetActive(true);
+        }
+        else
+        {
+            shield.SetActive(false);
+        }
+    }
+    
     [Header("Related Gameobjects / Scripts needed for determining control states")]
     [Tooltip("The player camera gameobject, used to manage the controller's rotations")]
     public GameObject playerCamera;
@@ -145,7 +197,6 @@ public class ThirdPersonCharacterController : MonoBehaviour
         {
             this.gameObject.transform.rotation = Quaternion.Euler(0, playerCamera.transform.rotation.eulerAngles.y, 0);
         }
-
     }
 
     [Header("Speed Control")]
@@ -161,29 +212,6 @@ public class ThirdPersonCharacterController : MonoBehaviour
 
     // The direction the player is moving in
     private Vector3 moveDirection = Vector3.zero;
-
-    /// <summary>
-    /// Description:
-    /// Handles swithing between control styles if more than one is coded in
-    /// Inputs:
-    /// float leftCharacterMovement | float rightCharacterMovement | bool jumpPressed
-    /// Returns:
-    /// void
-    /// </summary>
-    /// <param name="leftCharacterMovement">The movement input along the horizontal</param>
-    /// <param name="rightCharacterMovement">The movement input along the vertical</param>
-    /// <param name="jumpPressed">"Whether or not the jump input has been pressed"</param>
-    void CentralizedControl(float leftRightMovementAxis, float forwardBackwardMovementAxis, bool jumpPressed)
-    {
-        if (playerHealth.currentHealth <= 0)
-        {
-            DeadControl();
-        }
-        else
-        {
-            NormalControl(leftRightMovementAxis, forwardBackwardMovementAxis, jumpPressed);
-        }
-    }
 
     // Whether or not the double jump is currently available
     bool doubleJumpAvailable = false;
@@ -202,16 +230,33 @@ public class ThirdPersonCharacterController : MonoBehaviour
 
     /// <summary>
     /// Description:
+    /// Handles swithing between control styles if more than one is coded in
+    /// Inputs:
+    /// float leftCharacterMovement | float rightCharacterMovement | bool jumpPressed
+    /// Returns:
+    /// void
+    /// </summary>
+    void CentralizedControl(float leftRightMovementAxis, float forwardBackwardMovementAxis, bool jumpPressed, bool jumpHeld)
+    {
+        if (playerHealth.currentHealth <= 0)
+        {
+            DeadControl();
+        }
+        else
+        {
+            NormalControl(leftRightMovementAxis, forwardBackwardMovementAxis, jumpPressed, jumpHeld);
+        }
+    }
+
+    /// <summary>
+    /// Description:
     /// Handles motion of the player representation under the average or normal use case
     /// Inputs:
     /// float leftCharacterMovement | float rightCharacterMovement | bool jumpPressed
     /// Returns:
     /// void
     /// </summary>
-    /// <param name="leftCharacterMovement">The movement input along the horizontal</param>
-    /// <param name="rightCharacterMovement">The movement input along the vertical</param>
-    /// <param name="jumpPressed">"Wheter or not the jump input has been pressed"</param>
-    void NormalControl(float leftRightMovementAxis, float forwardBackwardMovementAxis, bool jumpPressed)
+    void NormalControl(float leftRightMovementAxis, float forwardBackwardMovementAxis, bool jumpPressed, bool jumpHeld)
     {
         // The input corresponding to the left and right movement
         float leftRightInput = leftRightMovementAxis;
@@ -221,15 +266,10 @@ public class ThirdPersonCharacterController : MonoBehaviour
         // If the controller is grounded
         if (characterController.isGrounded && !bounced)
         {
-            // Reset the time to stop being lenient
             timeToStopBeingLenient = Time.time + jumpTimeLeniency;
 
-            // reset horizontal forces
             xForce = 0f;
             zForce = 0f;
-
-            // make the double jump available again
-            doubleJumpAvailable = true;
 
             if (!landed && landingEffect != null && moveDirection.y <= fallAmount)
             {
@@ -237,88 +277,99 @@ public class ThirdPersonCharacterController : MonoBehaviour
                 Instantiate(landingEffect, transform.position, transform.rotation, null);
             }
 
-            // set the move direction based on the input
+            // Handle jump input when grounded
+            if (jumpPressed && shield.activeSelf==false)
+            {
+                moveDirection.y = jumpStrength;
+                if (jumpEffect != null)
+                {
+                    Instantiate(jumpEffect, transform.position, transform.rotation, null);
+                }
+                playerState = PlayerState.Jumping;
+            }
+
+            // movement in XZ plane
             moveDirection = new Vector3(leftRightInput, 0, forwardBackwardInput);
-
-            // transform the movement direction to be in world space (because we want to move in relation to the world not ourselves)
             moveDirection = transform.TransformDirection(moveDirection);
-
-            // Apply the movement speed to the movement direction
             moveDirection *= moveSpeed;
 
-            // If the player has pressed the jump button, apply to the y movement the jump strength
-            if (jumpPressed)
-            {
-                moveDirection.y = jumpStrength;
-                if (jumpEffect != null)
-                {
-                    Instantiate(jumpEffect, transform.position, transform.rotation, null);
-                }
-                playerState = PlayerState.Jumping;
-            }
-            else if (moveDirection == Vector3.zero)
-            {
+            // basic grounded state control
+            if (moveDirection == Vector3.zero)
                 playerState = PlayerState.Idle;
-            }
             else
-            {
                 playerState = PlayerState.Moving;
-            }
-
         }
-        // When we are not grounded...
         else
         {
-            // Apply move direction with the input and move speed to the x and z
-            // Apply the previous move direction y to this current move direction y
+            // Apply move direction while airborne
             moveDirection = new Vector3(leftRightInput * moveSpeed + xForce, moveDirection.y, forwardBackwardInput * moveSpeed + zForce);
-            // transform the movement direction to be in world space (because we want to move in relation to the world not ourselves)
             moveDirection = transform.TransformDirection(moveDirection);
 
-            // If the jump is pressed and we are still being lenient apply the jump
-            if (jumpPressed && Time.time < timeToStopBeingLenient)
-            {
-                moveDirection.y = jumpStrength;
-                if (jumpEffect != null)
-                {
-                    Instantiate(jumpEffect, transform.position, transform.rotation, null);
-                }
-                playerState = PlayerState.Jumping;
-            }
-            // otherwise, check for the double jump..
-            else if (jumpPressed && doubleJumpAvailable)
-            {
-                // Apply the double jump and make it unavailable
-                moveDirection.y = jumpStrength;
-                doubleJumpAvailable = false;
-                if (doubleJumpEffect != null)
-                {
-                    Instantiate(doubleJumpEffect, transform.position, transform.rotation, null);
-                }
-                playerState = PlayerState.DoubleJumping;
-            }
-            else if (moveDirection.y < -5.0f)
+            if (moveDirection.y < -5.0f)
             {
                 bounced = false;
                 landed = false;
                 playerState = PlayerState.Falling;
             }
         }
-        // Apply gravity with Time.deltaTime (effectively applied again to make it an acceleration)
+
+        // Handle jetpack
+        if (jumpHeld && currentFuel > 0f && shield.activeSelf==false)
+        {
+            moveDirection.y = jetpackThrust;
+            currentFuel -= fuelBurnRate * Time.deltaTime;
+            playerState = PlayerState.Jumping; 
+            thruster.SetActive(true);
+        }
+        else if (!jumpHeld && characterController.isGrounded)
+        {
+            // regenerate fuel when not using jetpack
+            currentFuel = Mathf.Min(maxFuel, currentFuel + fuelRegenRate * Time.deltaTime);
+        }
+
+        if (!jumpHeld || characterController.isGrounded)
+        {
+            thruster.SetActive(false);
+        }
+
+        // Apply dash momentum if active
+        if (dashTimer > 0)
+        {
+            moveDirection += dashMomentum;
+            dashTimer -= Time.deltaTime;
+            
+            // Gradually reduce dash power
+            dashMomentum = Vector3.Lerp(dashMomentum, Vector3.zero, Time.deltaTime * 5f);
+        }
+        else
+        {
+            dashMomentum = Vector3.zero; // reset when dash ends
+        }
+
+        // Countdown cooldown
+        if (!canDash)
+        {
+            dashCooldownTimer -= Time.deltaTime;
+            if (dashCooldownTimer <= 0f)
+            {
+                canDash = true;
+                dashCooldownTimer = 0f;
+            }
+        }
+
+        // Apply gravity
         moveDirection.y -= gravity * Time.deltaTime;
 
-        // If we are grounded and the y movedirection is negative reset it to something small
-        // This avoids building up a large negative motion along the y direction
+        // prevent excessive downward buildup
         if (characterController.isGrounded && moveDirection.y < 0)
         {
             moveDirection.y = -0.3f;
         }
 
-        // Pass the calculated move direction multiplied by the time inbetween freames to the charater controller move function
+        // Apply movement
         characterController.Move(moveDirection * Time.deltaTime);
 
-
-        // Make all assigned followers do their following of the player now
+        // followers
         foreach (FollowLikeChild follower in followers)
         {
             follower.FollowParent();
@@ -334,8 +385,6 @@ public class ThirdPersonCharacterController : MonoBehaviour
     /// Output:
     /// void
     /// </summary>
-    /// <param name="bounceForceMultiplier">The force to multiply jump strength by when bounce is called</param>
-    /// <param name="bounceJumpButtonHeldMultiplyer">The force to multiply jump strength by when bounce is called and the jump button is held down</param>
     public void Bounce(float bounceForceMultiplier, float bounceJumpButtonHeldMultiplyer, bool applyHorizontalForce)
     {
         bounced = true;
@@ -414,5 +463,4 @@ public class ThirdPersonCharacterController : MonoBehaviour
         // turn character controller back on
         characterController.enabled = true;
     }
-
 }

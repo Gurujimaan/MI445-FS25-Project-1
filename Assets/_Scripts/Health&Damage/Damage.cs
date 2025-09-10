@@ -123,6 +123,14 @@ public class Damage : MonoBehaviour
         {
             if (collidedHealth.teamId != this.teamId)
             {
+                if (collidedHealth.teamId == 0 && gameObject.tag == "Projectile")
+                {
+                    ThirdPersonCharacterController cc = collision.gameObject.GetComponent<ThirdPersonCharacterController>();
+                    if (cc.shield.activeSelf)
+                    {
+                        Destroy(this.gameObject);
+                    }
+                }
                 collidedHealth.TakeDamage(damageAmount);
                 if (destroyAfterDamage)
                 {
